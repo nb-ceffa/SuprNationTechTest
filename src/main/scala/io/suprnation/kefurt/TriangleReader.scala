@@ -2,7 +2,6 @@ package io.suprnation.kefurt
 
 import cats.effect.Sync
 import cats.data.OptionT
-import io.suprnation.kefurt.model.{End, Node, Triangle}
 
 import scala.io.Source
 import scala.util.Try
@@ -13,10 +12,11 @@ object TriangleReader {
 
   private val separator = " "
 
-  def load[F[_]: Sync](input: Source): F[Option[Triangle]] = {
+  def load[F[_]: Sync](input: Source): F[Option[Node]] = {
     val result = for {
       serializedTriangle <- OptionT(parse(input))
-    } yield createTriangle(serializedTriangle)
+      result <- OptionT.fromOption(createTriangle(serializedTriangle))
+    } yield result
 
     result.value
   }
@@ -27,33 +27,27 @@ object TriangleReader {
     }
   }
 
-  private def createTriangle(input: SerializedTriangle): Triangle = {
-    createTriangle(input, 0, 0)
+  case class Node(sumValue: Int, path: List[Int])
+
+  private def createTriangle(input: SerializedTriangle): Option[Node] = {
+    val bottom = input(input.length - 1).map(value => Node(value, List(value))) // last row (input.length - 1 == last index)
+    val upperRows = input.take(input.length - 1) // input.length - 1 == ignore last
+
+    upperRows
+      .foldRight(bottom)((currentLine, previousLine) => {
+        val selectedValues = computeMinOfTwoNeighboringValues(previousLine)
+        selectedValues.zip(currentLine).map { case (minValue, currentValue) =>
+          Node(minValue.sumValue + currentValue, minValue.path.prepended(currentValue))
+        }
+      })
+      .headOption
   }
-  private def createTriangle(input: SerializedTriangle, lineIndex: Int, nodeIndex: Int): Triangle = {
-    if (lineIndex == input.length - 1) {
-      // last line
-      End(input(lineIndex)(nodeIndex))
-    } else {
-      val leftTriangle = createTriangle(input, lineIndex + 1, nodeIndex)
-      val rightTriangle = createTriangle(input, lineIndex + 1, nodeIndex + 1)
-      val nodeValue = input(lineIndex)(nodeIndex)
-      val minimalPath = computeMinimalPath(leftTriangle, rightTriangle, nodeValue)
 
-      Node(leftTriangle, rightTriangle, nodeValue, minimalPath)
-    }
-  }
-
-  private def computeMinimalPath(left: Triangle, right: Triangle, nodeValue: Int): List[Int] = {
-    val leftMinPath = left.minimalPath.sum
-    val rightMinPath = right.minimalPath.sum
-
-    val minimal = if (leftMinPath < rightMinPath) {
-      left.minimalPath
-    } else {
-      right.minimalPath
-    }
-
-    minimal.prepended(nodeValue)
+  private def computeMinOfTwoNeighboringValues(previousLine: Array[Node]): Array[Node] = {
+    /*
+    val line = [1, 2, 3, 4]
+    line.zip(line.tail) === [(1,2),(2,3),(3,4)]
+     */
+    previousLine.zip(previousLine.tail).map(pair => if (pair._1.sumValue < pair._2.sumValue) pair._1 else pair._2)
   }
 }

@@ -2,7 +2,7 @@ package io.suprnation.kefurt
 
 import cats.effect.{ExitCode, IO, IOApp, Resource, Sync}
 import cats.syntax.traverse._
-import io.suprnation.kefurt.model.Triangle
+import io.suprnation.kefurt.TriangleReader.Node
 import org.slf4j.LoggerFactory
 
 import scala.io.Source
@@ -30,15 +30,15 @@ object Main extends IOApp {
 
   private def loadFile[F[_]: Sync](args: List[String]): Resource[F, Source] = {
     if (args.size < 1) {
-      Resource.make(Sync[F].delay(Source.stdin))(file => Sync[F].delay(file.close()))
+      Resource.fromAutoCloseable(Sync[F].delay(Source.stdin))
     } else {
       val filePath = args.head
       Resource.make(Sync[F].delay(Source.fromFile(filePath)))(file => Sync[F].delay(file.close()))
     }
   }
 
-  private def printMinimalPath[F[_]: Sync](triangle: Triangle): F[Unit] = {
-    val nodesStr = triangle.minimalPath.mkString(" + ")
-    Sync[F].delay(println(s"$nodesStr = ${triangle.minimalPath.sum}"))
+  private def printMinimalPath[F[_]: Sync](triangle: Node): F[Unit] = {
+    val nodesStr = triangle.path.mkString(" + ")
+    Sync[F].delay(println(s"$nodesStr = ${triangle.sumValue}"))
   }
 }
