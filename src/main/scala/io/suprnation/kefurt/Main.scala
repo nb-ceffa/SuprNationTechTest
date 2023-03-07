@@ -1,11 +1,9 @@
 package io.suprnation.kefurt
 
-import cats.effect.{ExitCode, IO, IOApp, Resource, Sync}
-import cats.syntax.traverse._
-import io.suprnation.kefurt.TriangleReader.Node
+import cats.data.OptionT
+import cats.effect.{std, ExitCode, IO, IOApp, Resource, Sync}
+import cats.implicits.toShow
 import org.slf4j.LoggerFactory
-
-import scala.io.Source
 
 object Main extends IOApp {
 
@@ -13,32 +11,28 @@ object Main extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
 
-    val result = for {
-      file <- loadFile[IO](args)
-      maybeTriangle <- Resource.eval(TriangleReader.load[IO](file))
-      _ <- Resource.eval(cats.effect.std.Console[IO].println(maybeTriangle))
-      _ <- maybeTriangle.traverse(triangle => Resource.eval(printMinimalPath[IO](triangle)))
-    } yield ExitCode.Success
-
-    result
-      .use(IO.pure)
+    load[IO](args)
+      .use { triangleReader =>
+        OptionT(triangleReader.getTriangle[IO])
+          .subflatMap(TriangleComputer.computeMinimum)
+          .map(_.show)
+          .semiflatMap(std.Console[IO].println)
+          .flatTapNone(std.Console[IO].println("Failed to load triangle."))
+          .map(_ => ExitCode.Success)
+          .getOrElse(ExitCode.Error)
+      }
       .handleErrorWith { e =>
         IO.delay(LOG.warn("Main application task failed with error", e))
           .flatMap(_ => IO.raiseError(e))
       }
   }
 
-  private def loadFile[F[_]: Sync](args: List[String]): Resource[F, Source] = {
+  private def load[F[_]: Sync](args: List[String]): Resource[F, TriangleReader] = {
     if (args.size < 1) {
-      Resource.fromAutoCloseable(Sync[F].delay(Source.stdin))
+      TriangleReader.makeFromStdIn
     } else {
       val filePath = args.head
-      Resource.make(Sync[F].delay(Source.fromFile(filePath)))(file => Sync[F].delay(file.close()))
+      TriangleReader.makeFromFile(filePath)
     }
-  }
-
-  private def printMinimalPath[F[_]: Sync](triangle: Node): F[Unit] = {
-    val nodesStr = triangle.path.mkString(" + ")
-    Sync[F].delay(println(s"$nodesStr = ${triangle.sumValue}"))
   }
 }

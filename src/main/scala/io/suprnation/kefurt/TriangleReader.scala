@@ -1,53 +1,29 @@
 package io.suprnation.kefurt
 
-import cats.effect.Sync
-import cats.data.OptionT
+import cats.effect.{Resource, Sync}
+import io.suprnation.kefurt.TriangleReader.separator
 
 import scala.io.Source
 import scala.util.Try
 
-object TriangleReader {
+class TriangleReader private (input: Source) {
 
-  type SerializedTriangle = Array[Array[Int]]
-
-  private val separator = " "
-
-  def load[F[_]: Sync](input: Source): F[Option[Node]] = {
-    val result = for {
-      serializedTriangle <- OptionT(parse(input))
-      result <- OptionT.fromOption(createTriangle(serializedTriangle))
-    } yield result
-
-    result.value
-  }
-
-  private def parse[F[_]: Sync](input: Source): F[Option[SerializedTriangle]] = {
+  def getTriangle[F[_]: Sync]: F[Option[Triangle]] = {
     Sync[F].delay {
       Try(input.getLines.map(line => line.split(separator).map(_.toInt)).toArray).toOption
     }
   }
+}
 
-  case class Node(sumValue: Int, path: List[Int])
+object TriangleReader {
 
-  private def createTriangle(input: SerializedTriangle): Option[Node] = {
-    val bottom = input(input.length - 1).map(value => Node(value, List(value))) // last row (input.length - 1 == last index)
-    val upperRows = input.take(input.length - 1) // input.length - 1 == ignore last
+  private val separator = " "
 
-    upperRows
-      .foldRight(bottom)((currentLine, previousLine) => {
-        val selectedValues = computeMinOfTwoNeighboringValues(previousLine)
-        selectedValues.zip(currentLine).map { case (minValue, currentValue) =>
-          Node(minValue.sumValue + currentValue, minValue.path.prepended(currentValue))
-        }
-      })
-      .headOption
+  def makeFromFile[F[_]: Sync](filePath: String): Resource[F, TriangleReader] = {
+    Resource.make(Sync[F].delay(Source.fromFile(filePath)))(file => Sync[F].delay(file.close())).map(new TriangleReader(_))
   }
 
-  private def computeMinOfTwoNeighboringValues(previousLine: Array[Node]): Array[Node] = {
-    /*
-    val line = [1, 2, 3, 4]
-    line.zip(line.tail) === [(1,2),(2,3),(3,4)]
-     */
-    previousLine.zip(previousLine.tail).map(pair => if (pair._1.sumValue < pair._2.sumValue) pair._1 else pair._2)
+  def makeFromStdIn[F[_]: Sync]: Resource[F, TriangleReader] = {
+    Resource.fromAutoCloseable(Sync[F].delay(Source.stdin)).map(new TriangleReader(_))
   }
 }
