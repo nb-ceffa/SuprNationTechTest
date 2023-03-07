@@ -4,6 +4,4 @@ version := "1.0"
 
 scalaVersion := "2.13.10"
 
-libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect" % "3.4.8"
-)
+libraryDependencies ++= Dependencies.Cats.all ++ Dependencies.Log.all
