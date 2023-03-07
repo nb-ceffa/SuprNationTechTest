@@ -22,7 +22,7 @@ object TriangleReader {
   }
 
   private def parse[F[_]: Sync](input: Source): F[Option[SerializedTriangle]] = {
-    Sync[F].delay{
+    Sync[F].delay {
       Try(input.getLines.map(line => line.split(separator).map(_.toInt)).toArray).toOption
     }
   }
@@ -38,7 +38,22 @@ object TriangleReader {
       val leftTriangle = createTriangle(input, lineIndex + 1, nodeIndex)
       val rightTriangle = createTriangle(input, lineIndex + 1, nodeIndex + 1)
       val nodeValue = input(lineIndex)(nodeIndex)
-      Node(leftTriangle, rightTriangle, nodeValue)
+      val minimalPath = computeMinimalPath(leftTriangle, rightTriangle, nodeValue)
+
+      Node(leftTriangle, rightTriangle, nodeValue, minimalPath)
     }
+  }
+
+  private def computeMinimalPath(left: Triangle, right: Triangle, nodeValue: Int): List[Int] = {
+    val leftMinPath = left.minimalPath.sum
+    val rightMinPath = right.minimalPath.sum
+
+    val minimal = if (leftMinPath < rightMinPath) {
+      left.minimalPath
+    } else {
+      right.minimalPath
+    }
+
+    minimal.prepended(nodeValue)
   }
 }
