@@ -29,9 +29,14 @@ object Main extends IOApp {
   }
 
   private def loadFile[F[_]: Sync](args: List[String]): Resource[F, Source] = {
-    // TODO: use Source.stdin
-    Resource.make(Sync[F].delay(Source.fromResource("data_extra_small.txt")))(file => Sync[F].delay(file.close()))
+    if (args.size < 1) {
+      Resource.make(Sync[F].delay(Source.stdin))(file => Sync[F].delay(file.close()))
+    } else {
+      val filePath = args.head
+      Resource.make(Sync[F].delay(Source.fromFile(filePath)))(file => Sync[F].delay(file.close()))
+    }
   }
+
   private def printMinimalPath[F[_]: Sync](triangle: Triangle): F[Unit] = {
     val nodesStr = triangle.minimalPath.mkString(" + ")
     Sync[F].delay(println(s"$nodesStr = ${triangle.minimalPath.sum}"))
