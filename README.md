@@ -12,3 +12,7 @@ execute `sbt "run <file_path>"`
 
 ## Read from file in resources
 execute `sbt "run src/main/resources/<file_name>"`
+
+
+## Run tests
+execute `sbt test`

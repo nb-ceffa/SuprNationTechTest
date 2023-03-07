@@ -15,4 +15,8 @@ object Dependencies {
 
     val all = Seq(core, slf4j)
   }
+
+  object Test {
+    val scalaTest = "org.scalatest" %% "scalatest" % "3.2.15"
+  }
 }

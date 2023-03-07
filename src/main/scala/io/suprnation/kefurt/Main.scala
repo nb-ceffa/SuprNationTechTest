@@ -16,7 +16,7 @@ object Main extends IOApp {
         OptionT(triangleReader.getTriangle[IO])
           .subflatMap(TriangleComputer.computeMinimum)
           .map(_.show)
-          .semiflatMap(std.Console[IO].println)
+          .semiflatMap(str => std.Console[IO].println(s"Minimal path is: $str"))
           .flatTapNone(std.Console[IO].println("Failed to load triangle."))
           .map(_ => ExitCode.Success)
           .getOrElse(ExitCode.Error)
