@@ -10,11 +10,10 @@ object Main extends IOApp {
   private val LOG = LoggerFactory.getLogger(Main.getClass)
 
   override def run(args: List[String]): IO[ExitCode] = {
-
     load[IO](args)
       .use { triangleReader =>
         OptionT(triangleReader.getTriangle[IO])
-          .subflatMap(TriangleComputer.computeMinimum)
+          .subflatMap(TriangleComputer.computeMinimalPath)
           .map(_.show)
           .semiflatMap(str => std.Console[IO].println(s"Minimal path is: $str"))
           .flatTapNone(std.Console[IO].println("Failed to load triangle."))

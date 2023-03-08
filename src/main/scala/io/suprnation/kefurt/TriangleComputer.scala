@@ -4,7 +4,7 @@ import io.suprnation.kefurt.model.MinimalPath
 
 object TriangleComputer {
 
-  def computeMinimum(input: Triangle): Option[MinimalPath] = {
+  def computeMinimalPath(input: Triangle): Option[MinimalPath] = {
     if (input.isEmpty) {
       None
     } else {
@@ -13,9 +13,13 @@ object TriangleComputer {
 
       upperRows
         .foldRight(bottom)((currentLine, previousLine) => {
-          val selectedMinValues = computeMinOfTwoNeighboringValues(previousLine)
-          selectedMinValues.zip(currentLine).map { case (minValue, currentValue) =>
-            MinimalPath(minValue.sumValue + currentValue, minValue.path.prepended(currentValue))
+          if (currentLine.length == previousLine.length - 1) { // correct triangle has to have an upper layer shorter precisely by one
+            val selectedMinValues = computeMinOfTwoNeighboringValues(previousLine)
+            selectedMinValues.zip(currentLine).map { case (minValue, currentValue) =>
+              MinimalPath(minValue.sumValue + currentValue, minValue.path.prepended(currentValue))
+            }
+          } else {
+            Array.empty
           }
         })
         .headOption
